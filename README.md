@@ -12,6 +12,29 @@ The frontend is implemented with **React and TypeScript**. It communicates only 
 * Sort projects by Market Capitalization
 * Sort projects by 24h Trading Volume
 
+## What Was Completed
+
+### Backend
+- Implemented a REST API using Python and FastAPI.
+- Integrated the CoinGecko API.
+- Added filtering by:
+  - Market Capitalization > $0
+  - Max Supply = Total Supply
+  - Fully Diluted Valuation (FDV) < $100M
+  - 24h Trading Volume > $50K
+  - Total Value Locked (TVL) > $50K
+- Implemented the `preview_listing` condition, but disabled it in the demonstration version due to the limitation explained below.
+- Exposed the filtered data through the `GET /api/coins` endpoint.
+
+### Frontend
+- Implemented the frontend using React and TypeScript.
+- Displayed cryptocurrency projects retrieved only from the backend.
+- Added partial search by project name.
+- Added a user-defined maximum FDV filter.
+- Added sorting by Market Capitalization.
+- Added sorting by 24h Trading Volume.
+- Added basic loading and error handling.
+
 ## Project Structure
 
 ```text
