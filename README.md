@@ -121,12 +121,14 @@ http://localhost:5173
 
 The original task requires projects to satisfy all of the following conditions:
 
-* Market Capitalization > $0
-* `preview_listing = true`
-* Max Supply equals Total Supply
-* Fully Diluted Valuation (FDV) < $100M
-* 24h Trading Volume > $50K
-* Total Value Locked (TVL) > $50K
+- Market Capitalization > $0
+- `preview_listing = true`
+- Max Supply equals Total Supply
+- Fully Diluted Valuation (FDV) < $100M
+- 24h Trading Volume > $50K
+- Total Value Locked (TVL) > $50K
+
+For simplicity and to limit CoinGecko API usage, the backend processes the first 250 projects ordered by 24h trading volume.
 
 During implementation, applying all of these conditions to the current CoinGecko API data resulted in an empty list.
 

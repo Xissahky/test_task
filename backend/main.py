@@ -7,8 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-
-# Allow React frontend to call this backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -27,26 +25,33 @@ MAX_FDV = 100_000_000
 MIN_VOLUME = 50_000
 MIN_TVL = 50_000
 
-
 KEY_FILE = Path(__file__).resolve().parent.parent / "key.txt"
 
 
 def get_headers():
-    if KEY_FILE.exists():
-        api_key = KEY_FILE.read_text().strip()
+    if not KEY_FILE.exists():
+        raise HTTPException(
+            status_code=500,
+            detail="CoinGecko API key is missing. Add it to key.txt."
+        )
 
-        if api_key:
-            return {
-                "x-cg-demo-api-key": api_key
-            }
+    api_key = KEY_FILE.read_text().strip()
 
-    return {}
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="CoinGecko API key is empty."
+        )
+
+    return {
+        "x-cg-demo-api-key": api_key
+    }
 
 
 def get_tvl_usd(tvl):
     """
-    CoinGecko may return TVL as a number, dictionary or null.
-    This function converts it to a USD number.
+    Convert CoinGecko TVL value to a USD number.
+    The API may return TVL as a number, dictionary, or null.
     """
     if tvl is None:
         return 0
@@ -62,7 +67,9 @@ def get_tvl_usd(tvl):
 
 @app.get("/")
 def root():
-    return {"message": "Backend is running"}
+    return {
+        "message": "Backend is running"
+    }
 
 
 @app.get("/api/coins")
@@ -70,7 +77,6 @@ def get_coins():
     headers = get_headers()
 
     try:
-
         response = requests.get(
             f"{COINGECKO_URL}/coins/markets",
             headers=headers,
@@ -87,15 +93,6 @@ def get_coins():
         response.raise_for_status()
         coins = response.json()
 
-        print("Total coins:", len(coins))
-
-        passed_market_cap = 0
-        passed_fdv = 0
-        passed_volume = 0
-        passed_supply = 0
-        passed_preview = 0
-        passed_tvl = 0
-
         filtered_coins = []
 
         for coin in coins:
@@ -105,25 +102,26 @@ def get_coins():
             max_supply = coin.get("max_supply")
             total_supply = coin.get("total_supply")
 
+            # Market Capitalization > 0
             if market_cap is None or market_cap <= 0:
                 continue
-            passed_market_cap += 1
 
+            # Fully Diluted Valuation < $100M
             if fdv is None or fdv >= MAX_FDV:
                 continue
-            passed_fdv += 1
 
+            # 24h Trading Volume > $50K
             if volume is None or volume <= MIN_VOLUME:
                 continue
-            passed_volume += 1
 
+            # Max Supply must equal Total Supply
             if max_supply is None or total_supply is None:
                 continue
 
             if max_supply != total_supply:
                 continue
-            passed_supply += 1
 
+            # Get additional data required for preview_listing and TVL
             details_response = requests.get(
                 f"{COINGECKO_URL}/coins/{coin['id']}",
                 headers=headers,
@@ -138,26 +136,39 @@ def get_coins():
                 timeout=15,
             )
 
+            if details_response.status_code == 429:
+                raise HTTPException(
+                    status_code=503,
+                    detail="CoinGecko API rate limit exceeded."
+                )
+
             if details_response.status_code != 200:
                 continue
 
             details = details_response.json()
 
-            # To fully comply with the terms of the assignment, uncomment on the following three lines and comment line after them
+            # Original assignment requirement:
+            #
+            # preview_listing = true
+            #
+            # This condition is intentionally disabled in the demonstration
+            # version because current CoinGecko data returns no projects that
+            # satisfy preview_listing=true together with all required market
+            # data filters.
+            #
+            # See README.md for a more detailed explanation.
+            #
             # if details.get("preview_listing") is not True:
             #     continue
-            # passed_preview += 1
-
-
-            # and comment next line
-            passed_preview += 1
 
             market_data = details.get("market_data", {})
-            tvl = get_tvl_usd(market_data.get("total_value_locked"))
+            tvl = get_tvl_usd(
+                market_data.get("total_value_locked")
+            )
 
+            # Total Value Locked > $50K
             if tvl <= MIN_TVL:
                 continue
-            passed_tvl += 1
 
             filtered_coins.append({
                 "id": coin["id"],
@@ -170,15 +181,7 @@ def get_coins():
                 "tvl": tvl,
             })
 
-        print("Passed market cap:", passed_market_cap)
-        print("Passed FDV:", passed_fdv)
-        print("Passed volume:", passed_volume)
-        print("Passed supply:", passed_supply)
-        print("Passed preview_listing:", passed_preview)
-        print("Passed TVL:", passed_tvl)
-
         return filtered_coins
-
 
     except requests.RequestException as error:
         raise HTTPException(
