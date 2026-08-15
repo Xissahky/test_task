@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+
+# API keys / environment
+key.txt
+.env
+
+# Build
+dist/
